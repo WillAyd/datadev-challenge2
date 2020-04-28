@@ -1,15 +1,17 @@
 import argparse
 import getpass
 import logging
-import requests
+import re
 
 from datetime import time
+import pandas as pd
+import requests
 
 import tableauserverclient as TSC
 
 
 def main():
-    #Set the query https://help.tableau.com/current/api/metadata_api/en-us/docs/meta_api_examples.html
+    # Set the query https://help.tableau.com/current/api/metadata_api/en-us/docs/meta_api_examples.html
     query = """
     {
         workbooks{
@@ -30,14 +32,22 @@ def main():
     }
     """
 
-    parser = argparse.ArgumentParser(description='Creates sample schedules for each type of frequency.')
-    parser.add_argument('--server', '-s', required=True, help='server address')
-    parser.add_argument('--username', '-u', required=True, help='username to sign into server')
-    parser.add_argument('--logging-level', '-l', choices=['debug', 'info', 'error'], default='error',
-                        help='desired logging level (set to error by default)')
-    parser.add_argument('--sitename', '-n', help='fghdhr')
+    parser = argparse.ArgumentParser(
+        description="Creates sample schedules for each type of frequency."
+    )
+    parser.add_argument("--server", "-s", required=True, help="server address")
+    parser.add_argument(
+        "--username", "-u", required=True, help="username to sign into server"
+    )
+    parser.add_argument(
+        "--logging-level",
+        "-l",
+        choices=["debug", "info", "error"],
+        default="error",
+        help="desired logging level (set to error by default)",
+    )
+    parser.add_argument("--sitename", "-n", help="fghdhr")
     args = parser.parse_args()
-    
 
     password = getpass.getpass("Password: ")
 
@@ -47,14 +57,39 @@ def main():
 
     tableau_auth = TSC.TableauAuth(args.username, password, args.sitename)
     server = TSC.Server(args.server)
-    server.version = '3.3'
+    server.version = "3.3"
 
     with server.auth.sign_in(tableau_auth):
-        #Query the Metadata API and store the response in resp
+        # Query the Metadata API and store the response in resp
         resp = server.metadata.query(query)
-        datasources = resp['data']
+        datasources = resp["data"]
 
-            
+    # TODO: we should be able to provide a meta path for ["workbooks", "owner", "name"]
+    # and ["workbooks", "owner", "email"] but seems to be a bug in pandas atm
+    df = pd.json_normalize(
+        datasources,
+        record_path=["workbooks", "embeddedDatasources", "fields"],
+        meta=[
+            ["workbooks", "embeddedDatasources", "name"],
+            ["workbooks", "name"],
+            ["workbooks", "owner"],
+        ],
+    )
+    df["owner"] = df["workbooks.owner"].apply(lambda x: x["name"])
+    df["email"] = df["workbooks.owner"].apply(lambda x: x["email"])
+    df = df.rename(
+        columns={
+            "name": "field_name",
+            "workbooks.embeddedDatasources.name": "datasource_name",
+            "workbooks.name": "workbook_name",
+        }
+    ).drop(columns=["workbooks.owner"])
 
-if __name__ == '__main__':
+    # TODO: should we add patterns like "TEST" or "DELETE"?
+    pater = r"^Calculation \d+$"
+    bad_records = df[df["field_name"].str.match(pater)]
+    print(bad_records)
+
+
+if __name__ == "__main__":
     main()
