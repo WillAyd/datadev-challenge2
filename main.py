@@ -49,7 +49,7 @@ def main():
     parser.add_argument("--sitename", "-n", help="fghdhr")
     args = parser.parse_args()
 
-    password = getpass.getpass("Password: ")
+    password = getpass.getpass("Password: ")    
 
     # Set logging level based on user input, or error by default
     logging_level = getattr(logging, args.logging_level.upper())
@@ -63,7 +63,7 @@ def main():
         # Query the Metadata API and store the response in resp
         resp = server.metadata.query(query)
         datasources = resp["data"]
-
+    
     # TODO: we should be able to provide a meta path for ["workbooks", "owner", "name"]
     # and ["workbooks", "owner", "email"] but seems to be a bug in pandas atm
     df = pd.json_normalize(
@@ -74,21 +74,32 @@ def main():
             ["workbooks", "name"],
             ["workbooks", "owner"],
         ],
+        record_prefix='field_',
+        sep='_',
+        errors='ignore'
     )
-    df["owner"] = df["workbooks.owner"].apply(lambda x: x["name"])
-    df["email"] = df["workbooks.owner"].apply(lambda x: x["email"])
+
+    df["owner"] = df["workbooks_owner"].apply(lambda x: x["name"])
+    df["email"] = df["workbooks_owner"].apply(lambda x: x["email"])
     df = df.rename(
         columns={
-            "name": "field_name",
-            "workbooks.embeddedDatasources.name": "datasource_name",
-            "workbooks.name": "workbook_name",
+            "workbooks_embeddedDatasources_name": "datasource_name",
+            "workbooks_name": "workbook_name",
+            "field___typename": "field_type"
         }
-    ).drop(columns=["workbooks.owner"])
+    ).drop(columns=["workbooks_owner"])
+    print(f"column types:\n{df.dtypes}")
 
-    # TODO: should we add patterns like "TEST" or "DELETE"?
-    pater = r"^Calculation \d+$"
-    bad_records = df[df["field_name"].str.match(pater)]
-    print(bad_records)
+    # # TODO: should we add patterns like "TEST" or "DELETE"?
+    # pater = r"^Calculation \d+$"
+    # bad_records = df[df["field_name"].str.match(pater)]
+    # print(bad_records)
+
+    # I am not familiar with regex so used direct string contains to search bad records
+    newdf = df.query('field_type == "CalculatedField" & field_name.str.contains("Calculation")')
+    print("DataFrame:",newdf[["workbook_name","owner","email","field_name"]].head())
+
+    # # TODO: build email funcation to inform the owner 
 
 
 if __name__ == "__main__":
