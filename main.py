@@ -1,12 +1,9 @@
 import argparse
 import getpass
 import logging
-import re
 import mail
 
-from datetime import time
 import pandas as pd
-import requests
 
 import tableauserverclient as TSC
 
@@ -50,7 +47,7 @@ def main():
     parser.add_argument("--sitename", "-n", help="fghdhr")
     args = parser.parse_args()
 
-    password = getpass.getpass("Password: ")    
+    password = getpass.getpass("Password: ")
 
     # Set logging level based on user input, or error by default
     logging_level = getattr(logging, args.logging_level.upper())
@@ -64,7 +61,7 @@ def main():
         # Query the Metadata API and store the response in resp
         resp = server.metadata.query(query)
         datasources = resp["data"]
-    
+
     # TODO: we should be able to provide a meta path for ["workbooks", "owner", "name"]
     # and ["workbooks", "owner", "email"] but seems to be a bug in pandas atm
     df = pd.json_normalize(
@@ -75,9 +72,9 @@ def main():
             ["workbooks", "name"],
             ["workbooks", "owner"],
         ],
-        record_prefix='field_',
-        sep='_',
-        errors='ignore'
+        record_prefix="field_",
+        sep="_",
+        errors="ignore",
     )
 
     df["owner"] = df["workbooks_owner"].apply(lambda x: x["name"])
@@ -86,7 +83,7 @@ def main():
         columns={
             "workbooks_embeddedDatasources_name": "datasource_name",
             "workbooks_name": "workbook_name",
-            "field___typename": "field_type"
+            "field___typename": "field_type",
         }
     ).drop(columns=["workbooks_owner"])
     print(f"column types:\n{df.dtypes}")
@@ -94,9 +91,9 @@ def main():
     # TODO: should we add patterns like "TEST" or "DELETE"?
     pater = r"^Calculation \d+$"
     newdf = df[df["field_name"].str.match(pater)]
-    
-    # build email body with the list of bad fields to inform the owner 
-    emaildf = newdf[["workbook_name","datasource_name","field_name"]]
+
+    # build email body with the list of bad fields to inform the owner
+    emaildf = newdf[["workbook_name", "datasource_name", "field_name"]]
 
     html = """\
     <html>
@@ -106,7 +103,9 @@ def main():
         {0}
     </body>
     </html>
-    """.format(emaildf.to_html(index=False))
+    """.format(
+        emaildf.to_html(index=False)
+    )
 
     mail.send_email("user email address", html)
 
