@@ -2,6 +2,7 @@ import argparse
 import getpass
 import logging
 import re
+import mail
 
 from datetime import time
 import pandas as pd
@@ -98,8 +99,21 @@ def main():
     # I am not familiar with regex so used direct string contains to search bad records
     newdf = df.query('field_type == "CalculatedField" & field_name.str.contains("Calculation")')
     print("DataFrame:",newdf[["workbook_name","owner","email","field_name"]].head())
+    
+    # build email body with the list of bad fields to inform the owner 
+    emaildf = newdf[["workbook_name","datasource_name","field_name"]]
 
-    # # TODO: build email funcation to inform the owner 
+    html = """\
+    <html>
+    <head></head>
+    <body>
+        <P>Please rename the following calculated fields as per standard naming conventions</P>
+        {0}
+    </body>
+    </html>
+    """.format(emaildf.to_html(index=False))
+
+    mail.send_email("user email address",html)
 
 
 if __name__ == "__main__":
