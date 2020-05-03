@@ -91,14 +91,9 @@ def main():
     ).drop(columns=["workbooks_owner"])
     print(f"column types:\n{df.dtypes}")
 
-    # # TODO: should we add patterns like "TEST" or "DELETE"?
-    # pater = r"^Calculation \d+$"
-    # bad_records = df[df["field_name"].str.match(pater)]
-    # print(bad_records)
-
-    # I am not familiar with regex so used direct string contains to search bad records
-    newdf = df.query('field_type == "CalculatedField" & field_name.str.contains("Calculation")')
-    print("DataFrame:",newdf[["workbook_name","owner","email","field_name"]].head())
+    # TODO: should we add patterns like "TEST" or "DELETE"?
+    pater = r"^Calculation \d+$"
+    newdf = df[df["field_name"].str.match(pater)]
     
     # build email body with the list of bad fields to inform the owner 
     emaildf = newdf[["workbook_name","datasource_name","field_name"]]
@@ -113,7 +108,7 @@ def main():
     </html>
     """.format(emaildf.to_html(index=False))
 
-    mail.send_email("user email address",html)
+    mail.send_email("user email address", html)
 
 
 if __name__ == "__main__":

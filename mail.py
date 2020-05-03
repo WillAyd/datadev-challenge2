@@ -9,7 +9,7 @@ smtpUsername = "username use to login to mail server"
 smtpPassword = "your password"
 fromAddress = "user@example.com"
 
-def send_email(toAddress,html):   
+def send_email(toAddress, html):   
     msg = MIMEMultipart()
     msg['From'] = fromAddress
     msg['To'] = toAddress
@@ -28,5 +28,4 @@ def send_email(toAddress,html):
 
 if __name__ == '__main__':
     # test1.py executed as script
-    # do something
     send_email("To email Address","html body")
